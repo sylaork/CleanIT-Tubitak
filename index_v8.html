@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CleanIT — Konuşma Analiz Sistemi</title>
+<style>
+/* ── Reset & Base ─────────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box}
+html{font-size:14px}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+  background:#f4f6f9;color:#1a1d23;line-height:1.5;
+  min-height:100vh;
+}
+
+/* ── Tokens ───────────────────────────────────────────────── */
+:root{
+  --c-blue:#1a56db;
+  --c-blue-l:#ebf0fc;
+  --c-green:#0d7c59;
+  --c-green-l:#e8f5f0;
+  --c-red:#c0392b;
+  --c-red-l:#fdf2f2;
+  --c-amber:#b45309;
+  --c-amber-l:#fef3e2;
+  --c-border:#d8dce5;
+  --c-surface:#ffffff;
+  --c-bg:#f4f6f9;
+  --c-text:#1a1d23;
+  --c-muted:#5a6478;
+  --c-subtle:#8a93a6;
+  --radius:8px;
+  --shadow:0 1px 4px rgba(0,0,0,.08),0 0 0 1px rgba(0,0,0,.04);
+}
+
+/* ── Topbar ───────────────────────────────────────────────── */
+.topbar{
+  background:#fff;
+  border-bottom:1px solid var(--c-border);
+  padding:0 28px;
+  height:56px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:200;
+}
+.topbar-brand{display:flex;align-items:center;gap:10px}
+.topbar-brand svg{flex-shrink:0}
+.brand-name{font-size:1rem;font-weight:700;letter-spacing:-.3px;color:var(--c-text)}
+.brand-sub{font-size:.75rem;color:var(--c-muted);margin-top:1px}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.status-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 10px;border-radius:20px;
+  font-size:.75rem;font-weight:600;
+  background:var(--c-bg);border:1px solid var(--c-border);
+  color:var(--c-muted);
+}
+.status-pill .dot{width:7px;height:7px;border-radius:50%;background:#94a3b8}
+.status-pill.connected .dot{background:#22c55e;box-shadow:0 0 0 2px #dcfce7}
+.status-pill.connected{color:var(--c-green);border-color:#bbf7d0;background:#f0fdf4}
+.status-pill.offline .dot{background:#f87171}
+.status-pill.offline{color:var(--c-red);border-color:#fecaca;background:var(--c-red-l)}
+.topbar-badge{
+  font-size:.72rem;font-weight:600;padding:3px 8px;
+  border-radius:4px;background:var(--c-blue-l);color:var(--c-blue);
+  border:1px solid #c7d7f8;
+}
+
+/* ── Layout ───────────────────────────────────────────────── */
+.layout{
+  display:grid;
+  grid-template-columns:340px 1fr;
+  gap:20px;
+  padding:20px 28px;
+  max-width:1380px;
+  margin:0 auto;
+  align-items:start;
+}
+@media(max-width:1024px){.layout{grid-template-columns:1fr}}
+
+/* ── Section block ────────────────────────────────────────── */
+.section{
+  background:var(--c-surface);
+  border:1px solid var(--c-border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+  margin-bottom:16px;
+}
+.section:last-child{margin-bottom:0}
+.sec-head{
+  padding:14px 18px;
+  border-bottom:1px solid var(--c-border);
+  display:flex;align-items:center;gap:8px;
+  background:#fafbfc;
+}
+.sec-head h3{font-size:.85rem;font-weight:700;letter-spacing:-.1px;color:var(--c-text)}
+.sec-icon{
+  width:26px;height:26px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.8rem;flex-shrink:0;
+}
+.si-blue  {background:var(--c-blue-l); color:var(--c-blue)}
+.si-green {background:var(--c-green-l);color:var(--c-green)}
+.si-amber {background:var(--c-amber-l);color:var(--c-amber)}
+.si-gray  {background:#f1f3f6;color:var(--c-muted)}
+.sec-body{padding:16px 18px}
+
+/* ── Upload zone ──────────────────────────────────────────── */
+.drop-zone{
+  border:1.5px dashed var(--c-border);
+  border-radius:6px;padding:32px 20px;
+  text-align:center;cursor:pointer;
+  transition:all .15s;background:#fafbfc;
+}
+.drop-zone:hover,.drop-zone.drag{
+  border-color:var(--c-blue);background:var(--c-blue-l);
+}
+.drop-zone p.main{font-size:.85rem;font-weight:600;color:var(--c-text);margin-bottom:4px}
+.drop-zone p.sub{font-size:.75rem;color:var(--c-muted)}
+.drop-icon{font-size:2rem;margin-bottom:10px;opacity:.5}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:8px 14px;border:1px solid transparent;border-radius:6px;
+  font-size:.83rem;font-weight:600;cursor:pointer;
+  transition:all .15s;width:100%;margin-top:8px;
+}
+.btn-primary{
+  background:var(--c-blue);color:#fff;
+  box-shadow:0 1px 3px rgba(26,86,219,.3);
+}
+.btn-primary:hover{background:#1648c7}
+.btn-success{background:var(--c-green);color:#fff;box-shadow:0 1px 3px rgba(13,124,89,.3)}
+.btn-success:hover{background:#0a6a4c}
+.btn-outline{background:#fff;color:var(--c-text);border-color:var(--c-border)}
+.btn-outline:hover{background:var(--c-bg)}
+.btn-danger-ghost{background:var(--c-red-l);color:var(--c-red);border-color:#fecaca;width:auto;margin-top:0;padding:6px 10px}
+.btn-danger-ghost:hover{background:#fde8e8}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ── File info ────────────────────────────────────────────── */
+.file-row{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border:1px solid var(--c-border);
+  border-radius:6px;background:#fafbfc;margin-bottom:8px;
+}
+.file-row .file-ico{font-size:1.3rem;flex-shrink:0}
+.file-row .file-info{flex:1;min-width:0}
+.file-row .file-name{font-size:.83rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-row .file-size{font-size:.73rem;color:var(--c-muted);margin-top:1px}
+
+/* ── Recording ────────────────────────────────────────────── */
+.rec-bar{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 14px;border:1px solid #fecaca;
+  border-radius:6px;background:var(--c-red-l);margin-bottom:8px;
+}
+.rec-led{width:9px;height:9px;border-radius:50%;background:var(--c-red);animation:blink 1.1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.rec-time{font-family:monospace;font-size:1.1rem;font-weight:700;color:var(--c-red);letter-spacing:1px}
+.rec-label{font-size:.76rem;color:var(--c-red);font-weight:600;flex:1}
+
+/* ── Progress ─────────────────────────────────────────────── */
+.step-list{}
+.step-row{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 0;border-bottom:1px solid #f1f3f6;font-size:.8rem;
+}
+.step-row:last-child{border-bottom:none}
+.step-num{
+  width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.7rem;font-weight:700;flex-shrink:0;
+  background:#e2e8f0;color:var(--c-muted);
+}
+.step-num.run{background:#fef3cd;color:#92400e;animation:pulse-num .8s infinite alternate}
+.step-num.ok {background:#dcfce7;color:var(--c-green)}
+@keyframes pulse-num{from{transform:scale(1)}to{transform:scale(1.12)}}
+.step-lbl{flex:1;color:var(--c-muted)}
+.step-lbl.run{color:var(--c-text);font-weight:600}
+.step-lbl.ok {color:var(--c-green)}
+.prog-wrap{margin:10px 0 2px}
+.prog-bar{height:4px;background:#e2e8f0;border-radius:4px;overflow:hidden}
+.prog-fill{height:100%;width:0;background:var(--c-blue);border-radius:4px;transition:width .5s ease}
+.prog-fill.indeterminate{
+  width:40%!important;
+  background:linear-gradient(90deg,var(--c-blue) 0%,#93c5fd 50%,var(--c-blue) 100%);
+  background-size:200% 100%;
+  animation:shimmer 1.4s infinite;
+  transition:none;
+}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.prog-label{font-size:.72rem;color:var(--c-muted);text-align:right;margin-top:4px}
+
+/* ── Settings ─────────────────────────────────────────────── */
+.field{margin-bottom:12px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:.77rem;font-weight:600;color:var(--c-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.field select,.field input[type=text]{
+  width:100%;padding:8px 10px;
+  border:1px solid var(--c-border);border-radius:6px;
+  font-size:.83rem;background:#fff;color:var(--c-text);
+  transition:border-color .15s;
+}
+.field select:focus,.field input[type=text]:focus{outline:none;border-color:var(--c-blue);box-shadow:0 0 0 3px rgba(26,86,219,.08)}
+
+/* ── Analysis info ────────────────────────────────────────── */
+.ctx-tag{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:4px;
+  font-size:.75rem;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+  background:var(--c-blue-l);color:var(--c-blue);border:1px solid #c7d7f8;
+  margin-bottom:10px;
+}
+.model-card{
+  padding:10px 12px;border:1px solid var(--c-border);
+  border-radius:6px;background:#fafbfc;margin-bottom:10px;
+}
+.model-card .mc-name{font-size:.83rem;font-weight:700;color:var(--c-text)}
+.model-card .mc-reason{font-size:.76rem;color:var(--c-muted);margin-top:3px;line-height:1.5}
+.scores-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.score-box{
+  padding:8px 6px;text-align:center;
+  border:1px solid var(--c-border);border-radius:6px;background:#fff;
+}
+.score-box.top{border-color:var(--c-blue);background:var(--c-blue-l)}
+.score-box .sv{font-size:1rem;font-weight:800;color:var(--c-muted)}
+.score-box.top .sv{color:var(--c-blue)}
+.score-box .sk{font-size:.68rem;color:var(--c-subtle);margin-top:2px;text-transform:uppercase}
+
+/* ── Chat ─────────────────────────────────────────────────── */
+.chat-window{
+  height:260px;overflow-y:auto;padding:12px;
+  border:1px solid var(--c-border);border-radius:6px;
+  background:#fafbfc;margin-bottom:10px;
+}
+.chat-window::-webkit-scrollbar{width:4px}
+.chat-window::-webkit-scrollbar-thumb{background:var(--c-border);border-radius:2px}
+.msg{margin-bottom:8px;display:flex}
+.msg.user{justify-content:flex-end}
+.bubble{
+  max-width:82%;padding:8px 12px;
+  font-size:.82rem;line-height:1.55;word-break:break-word;
+  border-radius:8px;
+}
+.msg.user .bubble{background:var(--c-blue);color:#fff;border-bottom-right-radius:2px}
+.msg.ai  .bubble{background:#fff;color:var(--c-text);border:1px solid var(--c-border);border-bottom-left-radius:2px}
+.msg.thinking .bubble{color:var(--c-muted);font-style:italic}
+.chat-input-row{display:flex;gap:6px}
+.chat-input-row input{
+  flex:1;padding:8px 10px;border:1px solid var(--c-border);border-radius:6px;
+  font-size:.83rem;transition:border-color .15s;
+}
+.chat-input-row input:focus{outline:none;border-color:var(--c-blue)}
+.chat-input-row input:disabled{background:var(--c-bg);color:var(--c-muted)}
+.chat-input-row button{
+  padding:8px 14px;background:var(--c-blue);color:#fff;
+  border:none;border-radius:6px;font-size:.83rem;font-weight:600;cursor:pointer;
+  transition:background .15s;white-space:nowrap;
+}
+.chat-input-row button:hover{background:#1648c7}
+.chat-input-row button:disabled{opacity:.45;cursor:not-allowed}
+.chat-model-label{font-size:.73rem;color:var(--c-muted);margin-bottom:6px}
+
+/* ── Right: Tabs ──────────────────────────────────────────── */
+.right-panel{
+  background:var(--c-surface);
+  border:1px solid var(--c-border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  display:flex;flex-direction:column;
+  min-height:560px;
+}
+.tab-nav{
+  display:flex;border-bottom:1px solid var(--c-border);
+  padding:0 18px;overflow-x:auto;flex-shrink:0;
+  background:#fafbfc;border-radius:var(--radius) var(--radius) 0 0;
+}
+.tab-btn{
+  padding:12px 14px;font-size:.8rem;font-weight:600;
+  color:var(--c-muted);background:transparent;border:none;
+  border-bottom:2px solid transparent;cursor:pointer;
+  transition:all .15s;white-space:nowrap;margin-bottom:-1px;
+  display:flex;align-items:center;gap:6px;
+}
+.tab-btn:hover{color:var(--c-text)}
+.tab-btn.active{color:var(--c-blue);border-bottom-color:var(--c-blue)}
+.tab-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:16px;height:16px;border-radius:8px;padding:0 4px;
+  background:var(--c-blue);color:#fff;font-size:.65rem;font-weight:700;
+}
+.tab-content{padding:20px;flex:1;overflow-y:auto}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+
+/* ── Result blocks ────────────────────────────────────────── */
+.result-block{
+  position:relative;padding:14px 16px;
+  border:1px solid var(--c-border);border-radius:6px;
+  background:#fafbfc;font-size:.83rem;line-height:1.75;
+  color:var(--c-text);white-space:pre-wrap;margin-bottom:12px;
+}
+.copy-btn{
+  position:absolute;top:10px;right:10px;
+  padding:4px 10px;border:1px solid var(--c-border);
+  border-radius:4px;background:#fff;font-size:.73rem;
+  color:var(--c-muted);cursor:pointer;transition:all .15s;
+}
+.copy-btn:hover{border-color:var(--c-blue);color:var(--c-blue)}
+.kp-list{list-style:none}
+.kp-item{
+  display:flex;align-items:flex-start;gap:8px;
+  padding:9px 12px;margin-bottom:6px;
+  border:1px solid var(--c-border);border-radius:6px;
+  background:#fff;font-size:.83rem;line-height:1.5;
+}
+.kp-item:hover{border-color:#c7d7f8;background:var(--c-blue-l)}
+.kp-bullet{width:6px;height:6px;border-radius:50%;background:var(--c-blue);flex-shrink:0;margin-top:6px}
+.action-list{list-style:none}
+.action-row{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:11px 14px;margin-bottom:8px;
+  border:1px solid var(--c-border);
+  border-left:3px solid var(--c-blue);
+  border-radius:6px;background:#fff;
+  font-size:.83rem;line-height:1.55;
+  transition:all .15s;
+}
+.action-row:hover{border-left-color:var(--c-blue);background:var(--c-blue-l);transform:translateX(2px)}
+.action-row.done{opacity:.55;border-left-color:var(--c-green);text-decoration:line-through}
+.action-idx{
+  min-width:22px;height:22px;border-radius:4px;
+  background:var(--c-blue-l);color:var(--c-blue);
+  font-size:.72rem;font-weight:800;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.action-check{
+  margin-left:auto;flex-shrink:0;width:16px;height:16px;
+  cursor:pointer;accent-color:var(--c-blue);
+}
+.empty-pane{
+  text-align:center;padding:64px 20px;
+  color:var(--c-subtle);
+}
+.empty-pane .empty-ico{font-size:2.2rem;margin-bottom:12px;opacity:.35}
+.empty-pane p{font-size:.82rem;line-height:1.6}
+
+/* ── Warning ──────────────────────────────────────────────── */
+.warn-strip{
+  display:flex;gap:8px;align-items:flex-start;
+  padding:9px 12px;border-radius:6px;
+  border:1px solid #fde68a;background:var(--c-amber-l);
+  font-size:.78rem;color:var(--c-amber);margin-bottom:10px;line-height:1.5;
+}
+
+/* ── Toast ────────────────────────────────────────────────── */
+#toast{
+  position:fixed;bottom:24px;right:24px;z-index:9999;
+  padding:10px 18px;border-radius:6px;font-size:.82rem;font-weight:600;
+  background:#1a1d23;color:#fff;box-shadow:0 4px 20px rgba(0,0,0,.2);
+  opacity:0;transition:opacity .2s;pointer-events:none;
+}
+#toast.show{opacity:1}
+
+/* ── Footer ───────────────────────────────────────────────── */
+footer{
+  text-align:center;padding:20px;
+  font-size:.74rem;color:var(--c-subtle);
+  border-top:1px solid var(--c-border);margin-top:4px;
+  background:var(--c-surface);
+}
+
+/* ── Util ─────────────────────────────────────────────────── */
+.hidden{display:none!important}
+.mt8{margin-top:8px}
+.mt12{margin-top:12px}
+</style>
+</head>
+<body>
+
+<!-- ──────── TOPBAR ──────── -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="7" fill="#1a56db"/>
+      <path d="M7 14h4l3-6 4 12 3-7h3" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div>
+      <div class="brand-name">CleanIT</div>
+      <div class="brand-sub">Konuşma Analiz Sistemi</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="status-pill" id="apiPill">
+      <span class="dot"></span><span id="apiText">Bağlanıyor…</span>
+    </div>
+    <span class="topbar-badge">TÜBİTAK 2209-A</span>
+  </div>
+</header>
+
+<!-- ──────── MAIN ──────── -->
+<main class="layout">
+
+  <!-- ══ LEFT COLUMN ══ -->
+  <div>
+
+    <!-- Input -->
+    <div class="section" id="inputSection">
+      <div class="sec-head">
+        <div class="sec-icon si-blue">▲</div>
+        <h3>Ses Girişi</h3>
+      </div>
+      <div class="sec-body">
+
+        <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
+          <div class="drop-icon">📂</div>
+          <p class="main">Dosya seçmek için tıklayın</p>
+          <p class="sub">veya bu alana sürükleyip bırakın</p>
+          <p class="sub" style="margin-top:6px">MP3 · WAV · M4A · OGG · WEBM</p>
+          <input type="file" id="fileInput" accept="audio/*,video/*" style="display:none">
+        </div>
+
+        <button class="btn btn-outline" id="recordBtn" style="margin-top:8px">
+          ● Mikrofon ile Kayıt
+        </button>
+
+        <!-- Recording -->
+        <div id="recBar" class="rec-bar hidden">
+          <div class="rec-led"></div>
+          <span class="rec-time" id="recTimer">00:00</span>
+          <span class="rec-label">Kayıt yapılıyor</span>
+          <button class="btn btn-danger-ghost" id="stopRecBtn" style="margin-top:0;width:auto">Durdur</button>
+        </div>
+
+        <!-- File bar -->
+        <div id="fileRow" class="file-row hidden">
+          <span class="file-ico">🎵</span>
+          <div class="file-info">
+            <div class="file-name" id="fileName">—</div>
+            <div class="file-size" id="fileSize">—</div>
+          </div>
+          <button class="btn btn-danger-ghost" id="clearBtn">✕</button>
+        </div>
+
+        <button class="btn btn-primary hidden" id="processBtn">Analizi Başlat</button>
+
+        <!-- Processing steps -->
+        <div id="processingPanel" class="hidden">
+          <div class="step-list" id="stepList"></div>
+          <div class="prog-wrap">
+            <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+            <div class="prog-label" id="progLabel">0%</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="section">
+      <div class="sec-head">
+        <div class="sec-icon si-gray">≡</div>
+        <h3>Seçenekler</h3>
+      </div>
+      <div class="sec-body">
+        <div class="field">
+          <label>Özet Uzunluğu</label>
+          <select id="summaryLength">
+            <option value="short">Kısa — 3-4 cümle</option>
+            <option value="medium" selected>Orta — 5-7 cümle</option>
+            <option value="long">Uzun — 8-12 cümle</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Çıktı Formatı</label>
+          <select id="outputFormat">
+            <option value="bullet" selected>Madde İşaretli</option>
+            <option value="paragraph">Paragraf</option>
+            <option value="detailed">Detaylı Analiz</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analysis info (post-process) -->
+    <div class="section hidden" id="analysisSection">
+      <div class="sec-head">
+        <div class="sec-icon si-blue">◎</div>
+        <h3>Analiz Bilgisi</h3>
+      </div>
+      <div class="sec-body" id="analysisBody"></div>
+    </div>
+
+    <!-- Q&A section (post-process) -->
+    <div class="section hidden" id="chatSection">
+      <div class="sec-head">
+        <div class="sec-icon si-green">?</div>
+        <h3>İçerik Sorgulama</h3>
+      </div>
+      <div class="sec-body">
+        <div class="chat-model-label" id="chatModelLabel"></div>
+        <div class="chat-window" id="chatWindow">
+          <div class="msg ai">
+            <div class="bubble">Konuşma analizi tamamlandıktan sonra içerik hakkında sorularınızı yanıtlayabilirim.</div>
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chatInput" placeholder="Soru yazın…" disabled>
+          <button id="chatSendBtn" disabled>Gönder</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /LEFT -->
+
+  <!-- ══ RIGHT PANEL ══ -->
+  <div class="right-panel">
+    <nav class="tab-nav" id="tabNav">
+      <button class="tab-btn active" data-tab="transcript">Ham Transkript</button>
+      <button class="tab-btn" data-tab="filtered">Temizlenmiş Metin</button>
+      <button class="tab-btn" data-tab="summary">Özet</button>
+      <button class="tab-btn" data-tab="keypoints">
+        Anahtar Noktalar
+        <span class="tab-badge hidden" id="kpBadge">0</span>
+      </button>
+      <button class="tab-btn" data-tab="actions">
+        Aksiyon Maddeleri
+        <span class="tab-badge hidden" id="actBadge">0</span>
+      </button>
+    </nav>
+
+    <div class="tab-content">
+
+      <div class="tab-pane active" id="pane-transcript">
+        <div class="empty-pane">
+          <div class="empty-ico">📄</div>
+          <p>Ses dosyası yüklenip analiz başlatıldığında<br>ham transkript burada görünecek.</p>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="pane-filtered">
+        <div class="empty-pane">
+          <div class="empty-ico">✦</div>
+          <p>Dolgu kelimeleri ve tekrarlar temizlendikten sonra<br>arıtılmış metin burada yer alacak.</p>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="pane-summary">
+        <div class="empty-pane">
+          <div class="empty-ico">≡</div>
+          <p>Yapay zekâ tarafından üretilen akıllı özet<br>burada görünecek.</p>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="pane-keypoints">
+        <div class="empty-pane">
+          <div class="empty-ico">◈</div>
+          <p>Konuşmadaki kritik bilgiler ve kararlar<br>burada listelenecek.</p>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="pane-actions">
+        <div class="empty-pane" id="actEmptyState">
+          <div class="empty-ico">◻</div>
+          <p>Konuşmadan çıkarılan yapılacaklar listesi<br>burada görünecek.</p>
+        </div>
+        <ul class="action-list hidden" id="actionList"></ul>
+        <div class="mt12 hidden" id="downloadRow">
+          <button class="btn btn-success" id="downloadBtn">Raporu İndir (.txt)</button>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /RIGHT -->
+
+</main>
+
+<footer>
+  TÜBİTAK 2209-A &nbsp;·&nbsp; İskenderun Teknik Üniversitesi &nbsp;·&nbsp;
+  Sıla Orak &amp; Sudenur Gaspik &nbsp;|&nbsp; Danışman: Kadir Tohma &nbsp;·&nbsp;
+  CleanIT v8.1
+</footer>
+
+<div id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   State
+═══════════════════════════════════════════════ */
+let audioFile   = null;
+let mediaRec    = null;
+let recChunks   = [];
+let recTimer    = null;
+let recSecs     = 0;
+let resultData  = null;
+let chatHistory = [];
+
+/* ═══════════════════════════════════════════════
+   Health
+═══════════════════════════════════════════════ */
+(async () => {
+  try {
+    const d = await fetch('/health').then(r => r.json());
+    const pill = document.getElementById('apiPill');
+    const txt  = document.getElementById('apiText');
+    if (d.openai_key_ok) {
+      pill.className = 'status-pill connected';
+      txt.textContent = 'ChatGPT API Bağlı';
+    } else {
+      pill.className = 'status-pill offline';
+      txt.textContent = 'Yerel Mod (API Yok)';
+    }
+  } catch {
+    document.getElementById('apiText').textContent = 'Sunucu Kapalı';
+  }
+})();
+
+/* ═══════════════════════════════════════════════
+   Tabs
+═══════════════════════════════════════════════ */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+}
+
+/* ═══════════════════════════════════════════════
+   File drop & select
+═══════════════════════════════════════════════ */
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+
+function setFile(f) {
+  audioFile = f;
+  document.getElementById('fileName').textContent = f.name;
+  document.getElementById('fileSize').textContent  = `${(f.size/1024/1024).toFixed(2)} MB`;
+  dropZone.classList.add('hidden');
+  document.getElementById('recordBtn').classList.add('hidden');
+  document.getElementById('fileRow').classList.remove('hidden');
+  document.getElementById('processBtn').classList.remove('hidden');
+}
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  audioFile = null; fileInput.value = '';
+  dropZone.classList.remove('hidden');
+  document.getElementById('recordBtn').classList.remove('hidden');
+  document.getElementById('fileRow').classList.add('hidden');
+  document.getElementById('processBtn').classList.add('hidden');
+  resetResults();
+});
+
+/* ═══════════════════════════════════════════════
+   Recording
+═══════════════════════════════════════════════ */
+document.getElementById('recordBtn').addEventListener('click', async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const types  = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg'];
+    let mime = '';
+    for (const m of types) { if (MediaRecorder.isTypeSupported(m)) { mime = m; break; } }
+    mediaRec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+    recChunks = []; recSecs = 0;
+
+    mediaRec.ondataavailable = e => { if (e.data?.size > 0) recChunks.push(e.data); };
+    mediaRec.onstop = () => {
+      const m   = mediaRec.mimeType || 'audio/webm';
+      const ext = m.includes('webm') ? 'webm' : (m.includes('ogg') ? 'ogg' : 'webm');
+      setFile(new File([new Blob(recChunks, {type: m})], `kayit_${Date.now()}.${ext}`, {type: m}));
+      stream.getTracks().forEach(t => t.stop());
+      document.getElementById('recBar').classList.add('hidden');
+      dropZone.classList.add('hidden');
+      document.getElementById('recordBtn').classList.add('hidden');
+    };
+
+    mediaRec.start();
+    dropZone.classList.add('hidden');
+    document.getElementById('recordBtn').classList.add('hidden');
+    document.getElementById('recBar').classList.remove('hidden');
+
+    recTimer = setInterval(() => {
+      recSecs++;
+      const m = String(Math.floor(recSecs/60)).padStart(2,'0');
+      const s = String(recSecs%60).padStart(2,'0');
+      document.getElementById('recTimer').textContent = `${m}:${s}`;
+    }, 1000);
+  } catch { showToast('Mikrofon erişimi reddedildi.'); }
+});
+
+document.getElementById('stopRecBtn').addEventListener('click', () => {
+  if (mediaRec?.state !== 'inactive') { mediaRec.stop(); clearInterval(recTimer); }
+});
+
+/* ═══════════════════════════════════════════════
+   Processing
+═══════════════════════════════════════════════ */
+const STEPS_DEF = [
+  { key:'asr',     label:'Ses tanıma (Whisper)' },
+  { key:'filter',  label:'Metin temizleme' },
+  { key:'context', label:'Bağlam tespiti' },
+  { key:'model',   label:'Model seçimi' },
+  { key:'smart',   label:'Özet & aksiyon üretimi' },
+];
+
+function buildSteps() {
+  const el = document.getElementById('stepList');
+  el.innerHTML = STEPS_DEF.map((s, i) => `
+    <div class="step-row">
+      <div class="step-num" id="sn-${s.key}">${i+1}</div>
+      <div class="step-lbl" id="sl-${s.key}">${s.label}</div>
+    </div>`).join('');
+}
+
+function setStep(key, state) {
+  const num = document.getElementById(`sn-${key}`);
+  const lbl = document.getElementById(`sl-${key}`);
+  if (!num) return;
+  num.className = 'step-num ' + state;
+  lbl.className = 'step-lbl ' + state;
+  num.textContent = state === 'ok' ? '✓' : STEPS_DEF.findIndex(s => s.key===key)+1;
+}
+
+function setProgress(pct) {
+  document.getElementById('progFill').style.width = pct + '%';
+  document.getElementById('progLabel').textContent = pct + '%';
+}
+
+document.getElementById('processBtn').addEventListener('click', async () => {
+  if (!audioFile) return;
+
+  document.getElementById('fileRow').classList.add('hidden');
+  document.getElementById('processBtn').classList.add('hidden');
+  document.getElementById('processingPanel').classList.remove('hidden');
+  buildSteps(); setProgress(0);
+  resetResults();
+
+  const fd = new FormData();
+  fd.append('audio', audioFile);
+  fd.append('settings', JSON.stringify({
+    summary_length: document.getElementById('summaryLength').value,
+    output_format:  document.getElementById('outputFormat').value,
+  }));
+
+  // Adım 1: dosyayı gönder, anında job_id al
+  let jobId;
+  try {
+    const r = await fetch('/api/process', { method:'POST', body:fd });
+    const d = await r.json();
+    if (!r.ok || d.error) { showError(d.error || 'Sunucu hatası'); resetUI(); return; }
+    jobId = d.job_id;
+  } catch(e) {
+    showError('Sunucuya bağlanılamadı: ' + e.message); resetUI(); return;
+  }
+
+  // Adım 2: job durumunu 3 saniyede bir sorgula
+  const STEP_ORDER = ['asr','filter','context','model','smart'];
+  const STEP_PCT   = { asr:12, filter:50, context:65, model:78, smart:88 };
+  let prevStep = '';
+  setStep('asr','run'); setProgress(5);
+
+  const poll = setInterval(async () => {
+    let status;
+    try {
+      const r = await fetch('/api/status/' + jobId);
+      status = await r.json();
+    } catch { return; }
+
+    const st   = status.status;
+    const step = status.step;
+
+    // Adım göstergelerini güncelle
+    if (step && step !== prevStep) {
+      const prevIdx = STEP_ORDER.indexOf(prevStep);
+      if (prevIdx >= 0) setStep(prevStep, 'ok');
+      setStep(step, 'run');
+      setProgress(STEP_PCT[step] || 85);
+
+      if (step === 'smart') {
+        const fill = document.getElementById('progFill');
+        fill.classList.add('indeterminate');
+        document.getElementById('progLabel').textContent = 'İşleniyor… (uzun sesler birkaç dakika sürebilir)';
+      }
+      prevStep = step;
+    }
+
+    if (st === 'done') {
+      clearInterval(poll);
+      STEPS_DEF.forEach(s => setStep(s.key,'ok'));
+      document.getElementById('progFill').classList.remove('indeterminate');
+      setProgress(100);
+      await sleep(350);
+      resetUI();
+      if (status.result) {
+        resultData = status.result;
+        if (status.result.warnings?.length) showToast('Uyarı: ' + status.result.warnings[0]);
+        renderResults(status.result);
+      }
+    } else if (st === 'error') {
+      clearInterval(poll);
+      document.getElementById('progFill').classList.remove('indeterminate');
+      resetUI();
+      showError(status.error || 'İşlem hatası');
+      showToast('Hata oluştu.');
+    }
+  }, 3000);
+
+  function resetUI() {
+    document.getElementById('processingPanel').classList.add('hidden');
+    document.getElementById('fileRow').classList.remove('hidden');
+    document.getElementById('processBtn').classList.remove('hidden');
+  }
+});
+
+/* ═══════════════════════════════════════════════
+   Render results
+═══════════════════════════════════════════════ */
+function renderResults(data) {
+  // Transcript
+  renderText('pane-transcript', data.raw_transcript, 'Transkript bulunamadı.');
+
+  // Filtered
+  renderText('pane-filtered', data.filtered_text, 'Temizlenmiş metin üretilemedi.');
+
+  // Summary
+  renderText('pane-summary', data.summary, 'Özet üretilemedi.');
+
+  // Key points
+  const kp = data.key_points || [];
+  document.getElementById('kpBadge').textContent = kp.length;
+  document.getElementById('kpBadge').classList.toggle('hidden', !kp.length);
+  const kpPane = document.getElementById('pane-keypoints');
+  if (kp.length) {
+    kpPane.innerHTML = '<ul class="kp-list">' +
+      kp.map(k => `<li class="kp-item"><span class="kp-bullet"></span><span>${esc(k)}</span></li>`).join('') +
+      '</ul>';
+  } else {
+    kpPane.innerHTML = '<div class="empty-pane"><div class="empty-ico">◈</div><p>Anahtar nokta çıkarılamadı.</p></div>';
+  }
+
+  // Actions
+  const acts = data.action_items || [];
+  document.getElementById('actBadge').textContent = acts.length;
+  document.getElementById('actBadge').classList.toggle('hidden', !acts.length);
+  const actList  = document.getElementById('actionList');
+  const actEmpty = document.getElementById('actEmptyState');
+  if (acts.length) {
+    actList.innerHTML = acts.map((a, i) => `
+      <li class="action-row" id="ar-${i}">
+        <span class="action-idx">${i+1}</span>
+        <span style="flex:1">${esc(a)}</span>
+        <input type="checkbox" class="action-check" onchange="toggleAction(${i},this)">
+      </li>`).join('');
+    actList.classList.remove('hidden');
+    actEmpty.classList.add('hidden');
+    document.getElementById('downloadRow').classList.remove('hidden');
+  }
+
+  // Analysis info
+  renderAnalysis(data);
+  document.getElementById('analysisSection').classList.remove('hidden');
+
+  // Chat
+  document.getElementById('chatSection').classList.remove('hidden');
+  initChat(data);
+
+  switchTab('summary');
+  showToast('Analiz tamamlandı.');
+}
+
+function renderText(paneId, text, fallback) {
+  const el = document.getElementById(paneId);
+  if (text?.trim()) {
+    el.innerHTML = `<div class="result-block">
+      <button class="copy-btn" onclick="copyText(this)">Kopyala</button>
+      <span>${esc(text)}</span>
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="empty-pane"><div class="empty-ico">—</div><p>${fallback}</p></div>`;
+  }
+}
+
+function renderAnalysis(data) {
+  const m      = data.selected_model || {};
+  const scores = data.context_scores || {};
+  const ctx    = data.context || 'genel';
+  const topCtx = Object.entries(scores).sort((a,b)=>b[1]-a[1])[0];
+
+  const scoreHtml = '<div class="scores-grid">' +
+    Object.entries(scores).map(([c,sc]) => `
+      <div class="score-box ${topCtx && c===topCtx[0] ? 'top' : ''}">
+        <div class="sv">${sc}</div>
+        <div class="sk">${c}</div>
+      </div>`).join('') +
+    '</div>';
+
+  const warn = data.used_llm_for_summary_actions === false
+    ? '<div class="warn-strip mt8">⚠ ChatGPT API kullanılamadı — yerel analiz modu aktif.</div>' : '';
+
+  document.getElementById('analysisBody').innerHTML = `
+    <div class="ctx-tag">◎ ${ctx.toUpperCase()}</div>
+    <div class="model-card">
+      <div class="mc-name">${m.label || m.model_id || '—'}</div>
+      <div class="mc-reason">${m.reason || ''}</div>
+    </div>
+    ${scoreHtml}${warn}`;
+}
+
+function toggleAction(idx, cb) {
+  document.getElementById('ar-' + idx)?.classList.toggle('done', cb.checked);
+}
+
+/* ═══════════════════════════════════════════════
+   Chat / Q&A
+═══════════════════════════════════════════════ */
+function initChat(data) {
+  chatHistory = [];
+  const m = data.selected_model || {};
+  document.getElementById('chatModelLabel').textContent = `Model: ${m.label || m.model_id || '—'}`;
+  document.getElementById('chatWindow').innerHTML = `
+    <div class="msg ai">
+      <div class="bubble">Analiz tamamlandı. Özet, aksiyon maddeleri veya içerik hakkında sorularınızı yazabilirsiniz.</div>
+    </div>`;
+  document.getElementById('chatInput').disabled   = false;
+  document.getElementById('chatSendBtn').disabled = false;
+}
+
+document.getElementById('chatSendBtn').addEventListener('click', sendChat);
+document.getElementById('chatInput').addEventListener('keypress', e => { if(e.key==='Enter') sendChat(); });
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg   = input.value.trim();
+  if (!msg || !resultData) return;
+  addMsg(msg, 'user');
+  input.value = '';
+  document.getElementById('chatSendBtn').disabled = true;
+  const thinkId = addMsg('…', 'ai thinking');
+  try {
+    const r = await fetch('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        message: msg, context: resultData.context,
+        transcript: resultData.filtered_text, summary: resultData.summary,
+        key_points: resultData.key_points, action_items: resultData.action_items,
+        selected_model: resultData.selected_model, history: chatHistory,
+      }),
+    });
+    const d = await r.json();
+    removeMsg(thinkId);
+    const reply = d.response || '(Boş yanıt)';
+    addMsg(reply, 'ai');
+    chatHistory.push({role:'user',content:msg},{role:'assistant',content:reply});
+    if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+  } catch(e) {
+    removeMsg(thinkId);
+    addMsg('Hata: ' + e.message, 'ai');
+  }
+  document.getElementById('chatSendBtn').disabled = false;
+}
+
+let msgId = 0;
+function addMsg(text, cls) {
+  const id  = 'msg-' + (++msgId);
+  const win = document.getElementById('chatWindow');
+  win.innerHTML += `<div class="msg ${cls.includes('user')?'user':'ai'} ${cls.includes('thinking')?'thinking':''}" id="${id}">
+    <div class="bubble">${esc(text)}</div></div>`;
+  win.scrollTop = win.scrollHeight;
+  return id;
+}
+function removeMsg(id) { document.getElementById(id)?.remove(); }
+
+/* ═══════════════════════════════════════════════
+   Download
+═══════════════════════════════════════════════ */
+document.getElementById('downloadBtn').addEventListener('click', async () => {
+  if (!resultData) return;
+  try {
+    const r = await fetch('/api/download-report', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(resultData),
+    });
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    Object.assign(document.createElement('a'), { href:url, download:`cleanit_${Date.now()}.txt` }).click();
+    URL.revokeObjectURL(url);
+    showToast('Rapor indirildi.');
+  } catch(e) { showToast('İndirme hatası: ' + e.message); }
+});
+
+/* ═══════════════════════════════════════════════
+   Helpers
+═══════════════════════════════════════════════ */
+function showError(msg) {
+  switchTab('transcript');
+  document.getElementById('pane-transcript').innerHTML = `
+    <div style="padding:20px">
+      <div style="padding:14px 16px;border:1px solid #fecaca;border-left:3px solid #dc2626;
+                  border-radius:6px;background:#fdf2f2;">
+        <div style="font-size:.83rem;font-weight:700;color:#c0392b;margin-bottom:6px">İşlem Hatası</div>
+        <div style="font-size:.82rem;color:#7f1d1d;line-height:1.6">${esc(msg)}</div>
+      </div>
+    </div>`;
+}
+
+function resetResults() {
+  resultData = null; chatHistory = [];
+  ['transcript','filtered','summary','keypoints'].forEach(t => {
+    document.getElementById('pane-'+t).innerHTML =
+      '<div class="empty-pane"><div class="empty-ico">—</div><p>Analiz bekleniyor.</p></div>';
+  });
+  document.getElementById('pane-actions').innerHTML = `
+    <div class="empty-pane" id="actEmptyState"><div class="empty-ico">◻</div><p>Aksiyon maddeleri burada görünecek.</p></div>
+    <ul class="action-list hidden" id="actionList"></ul>
+    <div class="mt12 hidden" id="downloadRow"><button class="btn btn-success" id="downloadBtn">Raporu İndir (.txt)</button></div>`;
+  document.getElementById('downloadBtn').addEventListener('click', downloadHandler);
+  ['kpBadge','actBadge'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+  document.getElementById('analysisSection').classList.add('hidden');
+  document.getElementById('chatSection').classList.add('hidden');
+  document.getElementById('chatInput').disabled   = true;
+  document.getElementById('chatSendBtn').disabled = true;
+}
+
+function downloadHandler() {
+  document.getElementById('downloadBtn').dispatchEvent(new Event('click'));
+}
+
+function copyText(btn) {
+  const text = btn.nextElementSibling.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Kopyalandı';
+    setTimeout(() => btn.textContent = 'Kopyala', 1800);
+  });
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\n/g,'<br>');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r,ms)); }
+</script>
+</body>
+</html>
